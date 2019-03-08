@@ -29,6 +29,7 @@ mouse model is needed.
 
 ## Overview
 
+```
 project
 |- README          # the top level description of content (this doc)
 |- CONTRIBUTING    # instructions for how to contribute to your project
@@ -56,3 +57,4 @@ project
 | |- tables/      # text version of tables to be rendered with kable in R
 | |- figures/     # graphs, likely designated for manuscript figures
 | +- pictures/    # diagrams, images, and other non-graph graphics
+```
