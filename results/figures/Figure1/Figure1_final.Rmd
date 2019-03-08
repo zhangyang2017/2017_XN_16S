@@ -1,0 +1,134 @@
+---
+title: "figure1"
+author: "Yang Zhang"
+date: "7/28/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(knitr)
+library(BiocStyle)
+
+.cran_packages <- c("ggplot2", "here", "dplyr", "ggpubr")
+.bioc_packages <- c("phyloseq")
+.inst <- .cran_packages %in% installed.packages()
+if(any(!.inst)) {
+   install.packages(.cran_packages[!.inst])
+}
+.inst <- .bioc_packages %in% installed.packages()
+if(any(!.inst)) {
+   source("http://bioconductor.org/biocLite.R")
+   biocLite(.bioc_packages[!.inst], ask = F)
+}
+# Load packages into session, and print package version
+sapply(c(.cran_packages, .bioc_packages), require, character.only = TRUE)
+```
+
+
+```{r create a phyloseq object}
+## load ASV count table
+asv_counts <- read.table(here("ASVs_counts.txt"), header = T)  ## 1620*47
+## load sample data table
+meta_data <- read.table(here("sampledata.txt"), row.names = 1) ## 47*51
+## load taxonomy table (filtered out some unclassified ASVs)
+taxa <- read.table(here("ASV_taxonomy_subset.txt"), header = T, stringsAsFactors = FALSE, sep = "\t", fill = TRUE, quote = "") ## 786*8
+
+## get the subset of asv_counts in which only an intersection of ASVs with taxa are shown.
+asv_counts_subset <- subset(asv_counts, rownames(asv_counts) %in% taxa[,1]) ## 786*47
+
+## get ready with taxa
+rownames(taxa) <- rownames(asv_counts_subset)
+taxa <- as.matrix(taxa)
+taxa <- taxa[, -c(1)]
+
+tax = tax_table(taxa) ## 786*7
+
+## make adjustments according to phyloseq's liking
+asv_counts_subset <- asv_counts_subset %>% 
+  mutate_if(is.integer, as.numeric)
+asv_counts_subset <- asv_counts_subset %>% 
+  mutate_if(is.factor, as.character)
+rownames(asv_counts_subset) <- rownames(taxa)
+
+asv_c = otu_table(asv_counts_subset, taxa_are_rows = TRUE)
+asv_d <- read.table(here("file.txt"), header = T)
+asv_d = otu_table(asv_d, taxa_are_rows = TRUE)
+
+sampledata = sample_data(meta_data)
+physeq <- merge_phyloseq(sampledata, asv_d, tax)
+physeq
+
+## can save physeq into an RDS file for easier access in the future
+## saveRDS(physeq, here("phyloseq_RA.rds"))
+```
+
+
+```{r set ggplot theme as black & white}
+theme_set(theme_bw())
+```
+
+
+```{r Figure1}
+######################################### phylum level ###################################################
+#phylumFiltered <- subset_taxa(physeq, Phylum != "NA")
+physeqPhylum <- tax_glom(physeq, taxrank = "Phylum")
+#tax_table(physeqPhylum)[, "Phylum"] <- gsub("p__", "", tax_table(physeqPhylum)[, "Phylum"])
+ppF <- transform_sample_counts(physeqPhylum, function(x) x/sum(x))
+#ppFr = filter_taxa(ppF, function(x) sum(x) >= 0.001, TRUE)
+
+
+phylumPalette <- c("#CA2431", "#B0CEEA", "#41B8C5", "#B3DE68", "#D3AA3D", "#FFB6C0")
+
+p <- plot_bar(ppF, x = "sampleID", y = "Abundance", fill = "Phylum") +
+    scale_fill_manual(values = phylumPalette) +
+    #geom_bar(stat = "identity") +
+    xlab("") +
+    ylab("Relative Abundance") +
+    theme(#axis.text.x = element_text(angle = 30, hjust = 1),
+          axis.text.x = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title.y = element_text(size = 20, margin = margin(t=0, r=10, b=0, l=0)),
+          axis.text.y = element_text(size = 15),
+          plot.margin = unit(c(1,1,1,1), "cm"),
+          legend.justification = "left",
+          legend.title = element_text(size = 18, face = "bold", colour = "#303F9F"),
+          legend.text = element_text(size = 12))
+
+######################################### family level ###################################################
+
+ntaxa(ppfr) #17
+familyPalette <- c('#ffd8b1', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#a9a9a9', '#fffac8', '#800000', '#FFB6C0', '#FFB6C0')
+
+familyFiltered <- subset_taxa(physeq, Family != "NA")
+physeqFamily <- tax_glom(familyFiltered, "Family")
+tax_table(physeqFamily)[, "Family"] <- gsub("f__", "", tax_table(physeqFamily)[, "Family"])
+ppf <- transform_sample_counts(physeqFamily, function(x) x/sum(x))
+ppfr = filter_taxa(ppf, function(x) sum(x) >= 0.005, TRUE)
+
+p1 <- plot_bar(ppfr, x = "sampleID", y = "Abundance", fill = "Family") +
+    scale_fill_manual(values = familyPalette) +
+    xlab(" ") +
+    ylab("Relative Abundance") +
+    theme(axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.y = element_text(size = 20, margin = margin(t=0, r=10, b=0, l=0)),
+        axis.text.y = element_text(size = 15),
+        plot.margin = unit(c(1,2,1,1), "cm"),
+        legend.justification = "left",
+        legend.title = element_text(size = 18, face = "bold", colour = "#303F9F"),
+        legend.text = element_text(size = 12))
+
+################################# combine plots ###########################################
+
+ggarrange(p, p1, align = "hv",
+          labels = c("A", "B"),
+          font.label = list(size = 25, color = "black"),
+          ncol = 1, nrow = 2)
+
+#ggsave(here("Figure1.png"), width = 18, height = 15)
+```
