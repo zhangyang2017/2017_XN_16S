@@ -31,30 +31,24 @@ mouse model is needed.
 
 ```
 project
-|- README          # the top level description of content (this doc)
-|- CONTRIBUTING    # instructions for how to contribute to your project
-|- LICENSE         # the license for this project
+|- README           # the top level description of content (this doc)
 |
 |- submission/
-| |- study.Rmd    # executable Rmarkdown for this study, if applicable
-| |- study.md     # Markdown (GitHub) version of the *.Rmd file
-| |- study.tex    # TeX version of *.Rmd file
-| |- study.pdf    # PDF version of *.Rmd file
-| |- header.tex   # LaTeX header file to format pdf version of manuscript
+| |- study.Rmd      # executable Rmarkdown for this study, if applicable
+| |- study.md       # Markdown (GitHub) version of the *.Rmd file
+| |- study.pdf      # PDF version of *.Rmd file
 | |- references.bib # BibTeX formatted references
-| |- XXXX.csl     # csl file to format references for journal XXX
+| |- XXXX.csl       # csl file to format references for journal XXX
 |
-|- data           # raw and primary data, are not changed once created
-| |- references/  # reference files to be used in analysis
-| |- raw/         # raw data, will not be altered
-| |- mothur/      # mothur processed data
-| +- process/     # cleaned data, will not be altered once created;
-|                 # will be committed to repo
+|- data             # raw and primary data, are not changed once created
+| |- references/    # reference files to be used in analysis
+| |- raw/           # raw data, will not be altered
+| |- dada2/         # dada2 processed data
 |
-|- code/          # any programmatic code
+|- code/            # any programmatic code
 |
-|- results        # all output from workflows and analyses
-| |- tables/      # text version of tables to be rendered with kable in R
-| |- figures/     # graphs, likely designated for manuscript figures
-| +- pictures/    # diagrams, images, and other non-graph graphics
+|- results          # all output from workflows and analyses
+| |- tables/        # text version of tables to be rendered with kable in R
+| |- figures/       # graphs, likely designated for manuscript figures
+| +- pictures/      # diagrams, images, and other non-graph graphics
 ```
