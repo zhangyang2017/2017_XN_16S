@@ -34,9 +34,7 @@ project
 |- README           # the top level description of content (this doc)
 |
 |- submission/
-| |- study.Rmd      # executable Rmarkdown for this study, if applicable
-| |- study.md       # Markdown (GitHub) version of the *.Rmd file
-| |- study.pdf      # PDF version of *.Rmd file
+| |- study.pdf      # Final manuscript
 | |- references.bib # BibTeX formatted references
 | |- XXXX.csl       # csl file to format references for journal XXX
 |
@@ -45,10 +43,6 @@ project
 | |- raw/           # raw data, will not be altered
 | |- dada2/         # dada2 processed data
 |
-|- code/            # any programmatic code
-|
 |- results          # all output from workflows and analyses
-| |- tables/        # text version of tables to be rendered with kable in R
 | |- figures/       # graphs, likely designated for manuscript figures
-| +- pictures/      # diagrams, images, and other non-graph graphics
 ```
