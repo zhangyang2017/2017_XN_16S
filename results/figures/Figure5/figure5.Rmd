@@ -1,0 +1,206 @@
+---
+title: "new_figure6"
+author: "Yang Zhang"
+date: "11/27/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+fecal_BA2 = read.table(here("fecal_BA3.txt"), header = T)
+df2 <- fecal_BA2[c(3:17)]
+data_centered <- scale(df2, scale = TRUE)
+
+library(factoextra)
+pca.var <- prcomp(data_centered)$sdev^2
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1)
+res.pca <- prcomp(data_centered)
+
+b <- fviz_eig(res.pca, addlabels = TRUE, title = "", 
+         xlab = "",
+         ylab = "",
+         barfill = "#7A9C91", barcolor = "#7A9C91",
+         ggtheme = theme_bw()) +
+    theme(axis.title = element_text(size = 20, face = "bold"),
+          axis.text = element_text(size = 14),
+          plot.margin = unit(c(-0.3,1,-0.5,-0.5), "cm"))
+
+b <- b + annotate("label", x = 9, y = 39.5, label = "ALL", size = 5.5)
+
+
+
+library(vegan)
+adonis(df2 ~ Diet, data = fecal_BA2, method='eu')
+
+a <- fviz_pca_biplot( prcomp(data_centered), axes = c(1,2),
+                geom.ind = "point", #geom.var = "arrow",
+                pointshape = 21, pointsize = 4,
+                fill.ind = fecal_BA2$Diet, col.ind = "black",
+                col.var = factor(c("secondary", "secondary", "secondary", "primary", "primary",
+                                   "primary", "secondary", "secondary", "primary", "secondary",
+                                   "primary","primary","primary","secondary","primary")),
+                alpha.var = 0.5, addEllipses = TRUE, ellipse.level = 0.95,
+                legend.title = list(fill = "treatment", color = "bile acid"),
+                mean.point = FALSE, repel = TRUE,   
+                title = "", 
+                xlab = paste("PC1 - ", pca.var.per[1], "%", sep = ""),
+                ylab = paste("PC2 - ", pca.var.per[2], "%", sep = ""),
+                ggtheme = theme_bw() )+
+    geom_point() + geom_text(aes(label=fecal_BA2$id), vjust = 1.5) +
+  ggpubr::fill_palette("jco")+    
+  ggpubr::color_palette(c("#722427", "#4594CA"))+
+  theme(axis.title = element_text(size = 16),
+           legend.title = element_text(size = 20),
+           legend.text = element_text(size = 12),
+          plot.margin = unit(c(-0.5,1,0,1), "cm"))
+
+a <- a + annotate("label", x = c(5,5), y = c(-3.3,-4.3), label = c("italic(R)^2 == 0.25", "italic(p) == 0.001"), 
+             vjust = "outward", hjust = "outward", parse = TRUE, color = c("darkblue", "red"), size = NA) 
+
+
+
+
+library(tidyverse)
+BA_sub <- fecal_BA2 %>%
+  filter(Diet == "1.HFD" | Diet  == "4.TXN")
+df_sub <- BA_sub[c(3:17)]
+data_centered_sub <- scale(df_sub, scale = TRUE)
+
+adonis(data_centered_sub ~ Diet, data = BA_sub, method='eu')
+
+pca.var.basub <- prcomp(data_centered_sub)$sdev^2
+pca.var.per.basub <- round(pca.var.basub/sum(pca.var.basub)*100, 1)
+res.pca.sub <- prcomp(data_centered_sub)
+get_eig(res.pca.sub)
+b2 <- fviz_eig(res.pca.sub, addlabels = TRUE, title = "", 
+         xlab = "",
+         ylab = "",
+         barfill = "#7A9C91", barcolor = "#7A9C91",
+         ggtheme = theme_bw()) +
+    #scale_y_continuous(position = "right") +
+    theme(axis.title = element_text(size = 20, face = "bold"),
+          axis.text = element_text(size = 14),
+          plot.margin = unit(c(-0.3,1,-0.5,-0.5), "cm"))
+
+b2 <- b2 + annotate("label", x = 9, y = 47, label = "TXN vs. HFD", size = 5.5)
+
+c <- fviz_pca_biplot( prcomp(data_centered_sub), axes = c(1,2),
+                geom.ind = "point", #geom.var = "arrow",
+                pointshape = 21, pointsize = 4, labelsize = 6,
+                fill.ind = BA_sub$Diet, col.ind = "black",
+                # Color variable by groups 22 groups
+                col.var = factor(c("secondary", "secondary", "secondary", "primary", "primary",
+                                   "primary", "secondary", "secondary", "primary", "secondary",
+                                   "primary","primary","primary","secondary","primary")),
+                alpha.var = 0.5, 
+                select.var = list(name = c("aMCA", "HDCA", "DCA", "bMCA", "DCA.iso", "TDCA.iso2", "TDCA.iso", "CA", "TUDCA", "TCA.iso", "TDCA", "T.bmCA", "T.amCA", "TCA")), 
+                addEllipses = TRUE, ellipse.level = 0.95,
+                legend.title = list(fill = "treatment", color = "bile acid"),
+                mean.point = FALSE, repel = TRUE,   
+                title = "", 
+                xlab = paste("PC1 - ", pca.var.per.basub[1], "%", sep = ""),
+                ylab = paste("PC2 - ", pca.var.per.basub[2], "%", sep = ""),
+                ggtheme = theme_bw() )+
+  ggpubr::fill_palette(c("#0072BF", "#CF524C"))+    
+  ggpubr::color_palette(c("#722427", "#4594CA"))+
+  theme(axis.title = element_text(size = 16),
+           legend.title = element_text(size = 20),
+           legend.text = element_text(size = 12),
+          plot.margin = unit(c(-0.5,1,0,1), "cm"))
+
+c <- c + annotate("label", x = c(4,4), y = c(-3.5,-4.3), label = c("italic(R)^2 == 0.23", "italic(p) == 0.001"), 
+             vjust = "outward", hjust = "outward", parse = TRUE, color = c("darkblue", "red"), size = NA) 
+
+
+
+
+ace <- ggpubr::ggarrange(a, e, c,
+          common.legend = TRUE, legend="right",
+          ncol = 1, nrow = 3)
+
+ggpubr::ggarrange(figure, ace, 
+          labels = c("A", "B"),
+          heights = c(4.5, 4.4),
+          widths = c(1.5,2.2),
+          common.legend = TRUE, legend="right",
+          ncol = 2, nrow = 1)
+
+
+
+
+
+BA_dxn <- fecal_BA2 %>%
+  filter(Diet == "1.HFD" | Diet  == "3.DXN")
+df_dxn <- BA_dxn[c(3:12)]
+data_centered_dxn <- scale(df_dxn, scale = TRUE)
+
+adonis(data_centered_dxn ~ Diet, data = BA_dxn, method='eu')
+
+
+pca.var.dxn <- prcomp(data_centered_dxn)$sdev^2
+pca.var.per.dxn <- round(pca.var.dxn/sum(pca.var.dxn)*100, 1)
+res.pca.dxn <- prcomp(data_centered_dxn)
+get_eig(res.pca.dxn)
+
+b3 <- fviz_eig(res.pca.dxn, addlabels = TRUE, title = "", 
+         xlab = "",
+         ylab = "",
+         barfill = "#7A9C91", barcolor = "#7A9C91",
+         ggtheme = theme_bw()) +
+    #scale_y_continuous(position = "right") +
+    theme(axis.title = element_text(size = 20, face = "bold"),
+          axis.text = element_text(size = 14),
+          plot.margin = unit(c(-0.1,1,-0.5,-0.5), "cm"))
+
+b3 <- b3 + annotate("label", x = 9, y = 47.5, label = "DXN vs. HFD", size = 5.5)
+
+
+figure <- ggpubr::ggarrange(b, b3, b2,
+          ncol = 1, nrow = 3)
+figure <- annotate_figure(figure,
+                bottom = text_grob("Principal Components (PCs)", size = 20),
+                left = text_grob("Percentage of Explained Variance", size = 20, rot = 90))
+
+
+
+e <- fviz_pca_biplot( prcomp(data_centered_dxn), axes = c(1,2),
+                geom.ind = "point", #geom.var = "arrow",
+                pointshape = 21, pointsize = 4, labelsize = 6,
+                fill.ind = BA_dxn$Diet, col.ind = "black",
+                # Color variable by groups 22 groups
+                col.var = factor(c("secondary", "secondary", "primary", "secondary",
+                                   "primary","primary","primary","secondary",
+                                   "primary","primary")),
+                alpha.var = 0.5, 
+                select.var = list(name = c("T.wMCA", "TCA", "HDCA", "DCA", "T.bMCA")), 
+                addEllipses = TRUE, ellipse.level = 0.95,
+                legend.title = list(fill = "treatment", color = "bile acid"),
+                mean.point = FALSE, repel = TRUE,   
+                title = "", 
+                xlab = paste("PC1 - ", pca.var.per.dxn[1], "%", sep = ""),
+                ylab = paste("PC2 - ", pca.var.per.dxn[2], "%", sep = ""),
+                ggtheme = theme_bw() )+
+  ggpubr::fill_palette(c("#0072BF", "#868686"))+    
+  ggpubr::color_palette(c("#722427", "#4594CA"))+
+  theme(axis.title = element_text(size = 16),
+           legend.title = element_text(size = 20),
+           legend.text = element_text(size = 12),
+          plot.margin = unit(c(-0.5,1,0,1), "cm"))
+
+
+e <- e + annotate("label", x = c(4.3,4.3), y = c(-1.5,-2.3), label = c("italic(R)^2 == 0.20", "italic(p) == 0.001"), 
+             vjust = "outward", hjust = "outward", parse = TRUE, color = c("darkblue", "red"), size = NA) 
+
+
+
+BA_xn <- fecal_BA2 %>%
+  filter(Diet == "1.HFD" | Diet  == "2.XN")
+df_xn <- BA_xn[c(3:12)]
+data_centered_xn <- scale(df_xn, scale = TRUE)
+
+adonis(data_centered_xn ~ Diet, data = BA_xn, method='eu')
+```
