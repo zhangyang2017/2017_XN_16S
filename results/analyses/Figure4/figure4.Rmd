@@ -1,0 +1,1073 @@
+---
+title: "Figures_for_manuscript"
+author: "Yang Zhang"
+date: "7/27/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(knitr)
+library(BiocStyle)
+
+.cran_packages <- c("ggplot2", "gridExtra", "here", "dplyr", "ggrepel", "ggpubr", "vegan", "psych")
+.bioc_packages <- c("dada2", "phyloseq", "DESeq2")
+.inst <- .cran_packages %in% installed.packages()
+if(any(!.inst)) {
+   install.packages(.cran_packages[!.inst])
+}
+.inst <- .bioc_packages %in% installed.packages()
+if(any(!.inst)) {
+   source("http://bioconductor.org/biocLite.R")
+   biocLite(.bioc_packages[!.inst], ask = F)
+}
+# Load packages into session, and print package version
+sapply(c(.cran_packages, .bioc_packages), require, character.only = TRUE)
+```
+
+
+```{r phyloseq object}
+asv_counts <- read.table(here("ASVs_counts_gg.txt"), header = T)
+meta_data <- read.table(here("sampledata.txt"), row.names = 1)
+taxa <- read.table(here("ASVs_taxonomy_gg.txt"), header = T, stringsAsFactors = FALSE, sep = "\t", fill = TRUE, quote = "")
+
+rownames(taxa) <- rownames(asv_counts)
+
+asv_counts <- asv_counts %>% 
+  mutate_if(is.integer, as.numeric)
+asv_counts <- asv_counts %>% 
+  mutate_if(is.factor, as.character)
+
+rownames(asv_counts) <- rownames(taxa)
+taxa <- as.matrix(taxa)
+
+
+asv_c = otu_table(asv_counts, taxa_are_rows = T)
+tax = tax_table(taxa)
+sampledata = sample_data(meta_data)
+#tree = phy_tree(fitGTR$tree)
+#physeq <- merge_phyloseq(sampledata, asv_c, tax, tree)
+physeq <- merge_phyloseq(sampledata, asv_c, tax)
+physeq
+saveRDS(physeq, here("physeq.rds"))
+```
+
+```{r}
+theme_set(theme_bw())
+```
+
+
+```{r Figure1}
+######################################### phylum level ###################################################
+
+phylumFiltered <- subset_taxa(physeq, Phylum != "NA")
+physeqPhylum <- tax_glom(phylumFiltered, "Phylum")
+tax_table(physeqPhylum)[, "Phylum"] <- gsub("p__", "", tax_table(physeqPhylum)[, "Phylum"])
+ppF <- transform_sample_counts(physeqPhylum, function(x) x/sum(x))
+ppFr = filter_taxa(ppF, function(x) sum(x) >= 0.001, TRUE)
+
+
+p <- plot_bar(ppFr, x = "sampleID", y = "Abundance", fill = "Phylum") +
+  xlab("") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1),
+        axis.title.y = element_text(size = 18),
+        axis.text.y = element_text(size = 10),
+        plot.margin = unit(c(1,1,1,1), "cm"),
+        legend.justification = "left",
+        legend.text = element_text(size = 12))
+
+######################################### family level ###################################################
+
+familyFiltered <- subset_taxa(physeq, Family != "NA")
+physeqFamily <- tax_glom(familyFiltered, "Family")
+tax_table(physeqFamily)[, "Family"] <- gsub("f__", "", tax_table(physeqFamily)[, "Family"])
+ppf <- transform_sample_counts(physeqFamily, function(x) x/sum(x))
+ppfr = filter_taxa(ppf, function(x) sum(x) >= 0.003, TRUE)
+
+p1 <- plot_bar(ppfr, x = "sampleID", y = "Abundance", fill = "Family") +
+  xlab(" ") +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1),
+        axis.title.y = element_text(size = 18),
+        axis.text.y = element_text(size = 10),
+        plot.margin = unit(c(1,2,1,1), "cm"),
+        legend.justification = "left",
+        legend.text = element_text(size = 12))
+
+####################################### combine plots #################################################
+
+ggarrange(p, p1, align = "hv",
+          labels = c("A", "B"),
+          font.label = list(size = 20, color = "black"),
+          ncol = 1, nrow = 2)
+
+ggsave(here("results/figures", "Figure1_abundance.png"), width = 18, height = 15)
+```
+
+
+```{r alpha diversity: non-rarefied}
+sample_sums(physeq)
+alpha <- estimate_richness(physeq)
+metadt <- as.data.frame(sample_data(physeq))
+
+alpha["Diet"] = metadt[,"Diet"] 
+alpha["sampleID"] = metadt[,"sampleID"]
+#Save this out for making tables.
+write.table(alpha, here("data/process", "alpha.txt"), sep = '\t', quote = F, col.names = NA)
+
+####################################### observed species #############################################
+
+#Here we are plotting Observed species, which in this case is technically observed ASVs.
+
+obs <- ggplot(alpha, aes(Diet, Observed)) + 
+  geom_boxplot(aes(fill = Diet)) + 
+  scale_x_discrete(limits =c("1.HFD", "2.XN", "3.DXN", "4.TXN")) + 
+  ylab("Observed species") +
+  xlab(" ") + 
+  stat_summary(fun.y=mean, geom = "point", shape = 8, size = 4) + 
+  scale_fill_manual(values=c("#a2bba7", "#f8d1ac", "#eb9391", "#9572bf")) +
+  theme(plot.margin=unit(c(1,0,0,0),"cm"))
+
+obs <- obs + theme(legend.position="none",
+                   axis.title.y = element_text(size = 18),
+                   axis.text.y = element_text(size = 10),
+                   axis.text.x = element_text(size = 15))
+
+####################################### Shannon metric ##############################################
+
+## Plotting Shannon diversity. With median and hinges as 25th and 75th quartiles and means as diamonds.
+
+shan <- ggplot(alpha, aes(Diet, Shannon)) +
+  geom_boxplot(aes(fill = Diet)) + 
+  scale_x_discrete(limits =c("1.HFD", "2.XN", "3.DXN", "4.TXN")) + 
+  xlab(" ") + 
+  stat_summary(fun.y=mean, geom = "point", shape = 8, size = 4) + 
+  scale_fill_manual(values=c("#a2bba7", "#f8d1ac", "#eb9391", "#9572bf"))
+
+shan <- shan + theme(legend.position="none",
+                      axis.title.y = element_text(size = 18),
+                      axis.text.y = element_text(size = 10),
+                      axis.text.x = element_text(size = 15)) +
+  scale_y_continuous(position = "right")
+
+####################################### combine plots #################################################
+
+ggarrange(obs, shan, align = "h",
+          labels = c("A", "B"), 
+          font.label = list(size = 20, color = "black"))
+
+ggsave(here("results/figures", "Figure2_alpha_diversity_unrarefied.png"), width = 13, height = 7)
+
+## Let’s go ahead and make and summarize our models. . .
+modelO1<- lm(log(Observed) ~ Diet, data=alpha) 
+summary(modelO1)
+modelO2<- lm(log(Shannon) ~ Diet, data=alpha) 
+summary(modelO2)
+
+alphamean = aggregate(alpha[,c('Observed',"Shannon")], by = list(alpha$Diet), FUN = mean)
+alphasd = aggregate(alpha[,c('Observed',"Shannon")],list(alpha$Diet), sd)
+
+write.table(alphamean, here("data/process", "alphamean.txt"), sep = '\t', quote = F, col.names = NA)
+write.table(alphasd, here("data/process", "alphasd.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+
+
+```{r alpha diversity: rarefied}
+## conducting alpha diversity analyses on our unﬁltered table to allow rare species and ﬁne-scale diﬀerences between samples to be accounted for.
+physeq.rare = rarefy_even_depth(physeq,
+                                sample.size = min(sample_sums(physeq)))
+sample_sums(physeq.rare)
+alph <- estimate_richness(physeq.rare)
+
+## Then add metadata to the alpha richness table.
+
+#Make a dataframe from metadata 
+metadt <- as.data.frame(sample_data(physeq))
+
+#Add treatment and asconc (categorical and continuous) arsenic concentrations to alpha div 
+alph["Diet"] = metadt[,"Diet"] 
+alph["sampleID"] = metadt[,"sampleID"]
+#Save this out for making tables.
+write.table(alph, here("data/process", "alph.txt"), sep = '\t', quote = F, col.names = NA)
+
+####################################### observed species #############################################
+
+#Here we are plotting Observed species, which in this case is technically observed ASVs.
+
+obs <- ggplot(alph, aes(Diet, Observed)) + 
+  geom_boxplot(aes(fill = Diet)) + 
+  scale_x_discrete(limits =c("1.HFD", "2.XN", "3.DXN", "4.TXN")) + 
+  ylab("Observed species") +
+  xlab(" ") + 
+  #theme_bw() + 
+  stat_summary(fun.y=mean, geom = "point", shape = 8, size = 4) + 
+  scale_fill_manual(values=c("#a2bba7", "#f8d1ac", "#eb9391", "#9572bf"))
+
+obs <- obs + theme(legend.position="none",
+                   axis.title.y = element_text(size = 18),
+                   axis.text.y = element_text(size = 10),
+                   axis.text.x = element_text(size = 15))
+
+####################################### Shannon metric ##############################################
+
+## Plotting Shannon diversity. With median and hinges as 25th and 75th quartiles and means as diamonds.
+
+shan <- ggplot(alph, aes(Diet, Shannon)) +
+  geom_boxplot(aes(fill = Diet)) + 
+  scale_x_discrete(limits =c("1.HFD", "2.XN", "3.DXN", "4.TXN")) + 
+  xlab(" ") + 
+  stat_summary(fun.y=mean, geom = "point", shape = 8, size = 4) + 
+  scale_fill_manual(values=c("#a2bba7", "#f8d1ac", "#eb9391", "#9572bf"))
+
+shan <- shan + theme(legend.position="none",
+                      axis.title.y = element_text(size = 18),
+                      axis.text.y = element_text(size = 10),
+                      axis.text.x = element_text(size = 15)) +
+  scale_y_continuous(position = "right")
+
+####################################### combine plots #################################################
+
+ggarrange(obs, shan, align = "h",
+          labels = c("A", "B"), 
+          font.label = list(size = 20, color = "black"))
+
+ggsave(here("results/figures", "Figure2_alpha_diversity.png"), width = 12, height = 6)
+
+## Let’s go ahead and make and summarize our models. . .
+modelO1<- lm(log(Observed) ~ Diet, data=alph) 
+summary(modelO1)
+modelO2<- lm(log(Shannon) ~ Diet, data=alph) 
+summary(modelO2)
+
+
+```
+
+
+```{r beta diversity}
+# Transform data to proportions as appropriate for Bray-Curtis distances
+ps.prop <- transform_sample_counts(physeq, function(x) x/sum(x))
+
+pca.ord <- ordinate(ps.prop, method = "PCoA")
+
+####################################################### PCoA #########################################################
+
+allcolors <- c("#a2bba7", "#f8d1ac", "#eb9391", "#9572bf")
+
+p <- plot_ordination(ps.prop, pca.ord, color = "Diet")
+
+p + geom_point(size = 4) +
+  scale_color_manual(values = allcolors) +
+  stat_ellipse(type = "t", level = 0.95) +
+  geom_vline(xintercept = 0, alpha = 0.15) +
+  geom_hline(yintercept = 0, alpha = 0.15) +
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        legend.text = element_text(size = 20), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_text(size = 20, face = "bold")) 
+
+ggsave(here("results/figures", "Figure3_beta_diversity.png"), width = 12, height = 8)
+
+## perform adonis with phyloseq
+metadt_pc <- as(sample_data(physeq), "data.frame")
+set.seed(2018)
+adonis(phyloseq::distance(physeq, method="bray") ~ Diet, data = metadt_pc)
+
+####################################################### NMDS #########################################################
+
+pca.ord1 <- ordinate(ps.prop, method = "NMDS")
+p1 <- plot_ordination(ps.prop, pca.ord1, color = "Diet")
+p1 + geom_point(size = 4) +
+  scale_color_manual(values = allcolors) +
+  stat_ellipse() +
+  geom_vline(xintercept = 0, alpha = 0.15) +
+  geom_hline(yintercept = 0, alpha = 0.15) +
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15, face = "bold"),
+        plot.title = element_text(size = 18, face = "bold"),
+        legend.text = element_text(size = 20), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_text(size = 20, face = "bold"))
+```
+
+
+
+## DESeq2
+
+There are three ﬁtTypes available (local, paramteric and mean). 
+After testing all three, I found the local ﬁt was best. Though this is data dependent, I haven’t seen anything other than a local ﬁt used. 
+De_factor is our metadata category that has all the samples organized based on presence and absence of xanthohumol.
+
+```{r DESeq2 differential abundance: HFD vs. TXN}
+#Make table a data frame 
+psdt<-as.data.frame(otu_table(physeq)) 
+colnames <- sample_data(physeq) 
+#Make a matrix
+psdtt = as(psdt,"matrix") 
+#Add 1 to all values 
+psdtt = psdtt + 1 
+#Make a DESeq dataset from our matrix 
+dds<- DESeqDataSetFromMatrix(psdtt, colnames, design = as.formula(paste("~","Diet"))) ## ignore the warning
+
+#Run the DESeq2's main function - a differential expression analysis based on the Negative binomial distribution
+dds<- DESeq(dds, fitType = "local", test = "Wald", quiet = TRUE) 
+plotDispEsts(dds) ## what does the plot say...
+
+
+## extract differential abundance results
+
+# Here we compare the experimental group to the control group. The order is important! We put the experimental ﬁrst and control second, allowing us to eventually see the log2fold change in bacterial abundance in the presence of arsenic. 
+# We then write this out to a table. We can do this where P<0.05 and P<=0.01.
+
+res <- results(dds, contrast = c("Diet", "4.TXN", "1.HFD")) 
+res = res[order(res$padj, na.last=NA), ] 
+sigtab05 = res[(res$padj < 0.05), ]
+
+dim(sigtab05) #Export this to use as a table (for supplementary)
+sigtab05 = cbind(as(sigtab05, "data.frame"), as(tax_table(physeq)[rownames(sigtab05), ], "matrix"))
+write.table(sigtab05, here("sigtab05.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab05$Genus <- as.character(sigtab05$Genus)
+#Replacing the values with NA 
+sigtab05$Genus <- replace(sigtab05$Genus, sigtab05$Genus=="g__", NA)
+sigtab05$Genus <- gsub("g__*", "", sigtab05$Genus)
+sigtab05$Phylum <- gsub("p__*", "", sigtab05$Phylum)
+sigtab05$Family <- gsub("f__*", "", sigtab05$Family)
+sigtabna05 = subset(sigtab05, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab05 = sigtabna05[(sigtabna05$log2FoldChange >=0) & (sigtabna05$padj <= 0.05),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab05 = sigtabna05[(sigtabna05$log2FoldChange <=0) & (sigtabna05$padj <= 0.05),] 
+#Make tables 
+posc05 <- as.data.frame(table(possigtab05$Genus)) 
+negc05 <- as.data.frame(table(negsigtab05$Genus))
+
+#Add increase and decrease labels 
+posc05[["change"]] <- (rep(c("Increase"),dim(posc05)[1])) 
+negc05[["change"]] <- (rep(c("Decrease"),dim(negc05)[1]))
+
+posnegc05 = rbind(posc05,negc05) 
+write.table(posnegc05, here("posnegc05.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: HFD vs. TXN}
+# We choose to color and ﬁll by Phylum and label by Genus.
+# Define our discrete palette 
+#scale_fill_discrete <- function(palname = "Set1", ...) { 
+#scale_fill_brewer(palette = palname, ...)
+#}
+
+#Sort our table 
+x = tapply(sigtab05$log2FoldChange, sigtab05$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05$Phylum = factor(as.character(sigtab05$Phylum), levels=names(x)) 
+x = tapply(sigtab05$log2FoldChange, sigtab05$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05$Genus = factor(as.character(sigtab05$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab05pos = sigtab05[(sigtab05$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab05pos, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 49 NAs that increased in abundance
+sigtab05neg = sigtab05[(sigtab05$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab05neg, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 162 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab05, 1, function(x){any(is.na(x))}) 
+sigtab05.filtered <- sigtab05[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de <-  ggplot(sigtab05.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  guides(fill=guide_legend(nrow = 1)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "bottom",
+        legend.key=element_blank(),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank())
+
+#fc6cf2 pink
+#f91904 red
+
+
+hfd_txn <- de + scale_fill_manual(values=c("#0be0e8", "#f91904", "#fc6cf2", "#a9f293", "#f7f76f")) + ylim(-10,6) + coord_flip()
+
+hfd_txn <- hfd_txn + annotate("text", x = 22, y = -9, label = "HFD vs. TXN")
+
+ggsave(here("results/figures", "hfd-txn.png"), width = 10, height = 8)
+```
+
+
+```{r DESeq2 differential abundance: HFD vs. DXN}
+res31 <- results(dds, contrast = c("Diet", "3.DXN", "1.HFD")) 
+res31 = res31[order(res31$padj, na.last=NA), ] 
+sigtab05.31 = res31[(res31$padj < 0.05), ]
+
+dim(sigtab05.31) #Export this to use as a table (for supplementary)
+sigtab05.31 = cbind(as(sigtab05.31, "data.frame"), as(tax_table(physeq)[rownames(sigtab05.31), ], "matrix"))
+write.table(sigtab05.31, here("data/process", "sigtab05-31.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab05.31$Genus <- as.character(sigtab05.31$Genus)
+#Replacing the values with NA 
+sigtab05.31$Genus <- replace(sigtab05.31$Genus, sigtab05.31$Genus=="g__", NA)
+sigtab05.31$Genus <- gsub("g__*", "", sigtab05.31$Genus)
+sigtab05.31$Phylum <- gsub("p__*", "", sigtab05.31$Phylum)
+sigtab05.31$Family <- gsub("f__*", "", sigtab05.31$Family)
+sigtabna05.31 = subset(sigtab05.31, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab05.31 = sigtabna05.31[(sigtabna05.31$log2FoldChange >=0) & (sigtabna05.31$padj <= 0.05),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab05.31 = sigtabna05.31[(sigtabna05.31$log2FoldChange <=0) & (sigtabna05.31$padj <= 0.05),] 
+#Make tables 
+posc05.31 <- as.data.frame(table(possigtab05.31$Genus)) 
+negc05.31 <- as.data.frame(table(negsigtab05.31$Genus))
+
+#Add increase and decrease labels 
+posc05.31[["change"]] <- (rep(c("Increase"),dim(posc05.31)[1])) 
+negc05.31[["change"]] <- (rep(c("Decrease"),dim(negc05.31)[1]))
+
+posnegc05.31 = rbind(posc05.31,negc05.31) 
+write.table(posnegc05.31, here("data/process", "posnegc05-31.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: HFD vs. DXN}
+x = tapply(sigtab05.31$log2FoldChange, sigtab05.31$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05.31$Phylum = factor(as.character(sigtab05.31$Phylum), levels=names(x)) 
+x = tapply(sigtab05.31$log2FoldChange, sigtab05.31$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05.31$Genus = factor(as.character(sigtab05.31$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab05pos = sigtab05.31[(sigtab05.31$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab05pos, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 61 NAs that increased in abundance
+sigtab05neg = sigtab05.31[(sigtab05.31$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab05neg, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 137 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab05.31, 1, function(x){any(is.na(x))}) 
+sigtab05.filtered <- sigtab05.31[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de.31 <-  ggplot(sigtab05.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  #guides(fill=guide_legend(ncol=3)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "none",
+        #legend.key=element_blank(),
+        #legend.text = element_text(size = 12),
+        #legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank())
+
+hfd_dxn <- de.31 + scale_fill_manual(values=c("#0be0e8", "#f91904", "#fc6cf2", "#f7f76f", "#032cf9")) + ylim(-10,8) + coord_flip()
+
+hfd_dxn <- hfd_dxn + annotate("text", x = 22, y = -9, label = "HFD vs. DXN")
+
+ggsave(here("results/figures", "hfd-dxn.png"), width = 10, height = 7)
+```
+
+
+```{r DESeq2 differential abundance: HFD vs. XN}
+res <- results(dds, contrast = c("Diet", "2.XN", "1.HFD")) 
+res = res[order(res$padj, na.last=NA), ] 
+sigtab05 = res[(res$padj < 0.05), ]
+
+dim(sigtab05) #Export this to use as a table (for supplementary)
+sigtab05 = cbind(as(sigtab05, "data.frame"), as(tax_table(physeq)[rownames(sigtab05), ], "matrix"))
+write.table(sigtab05, here("data/process", "hfd_xn.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab05$Genus <- as.character(sigtab05$Genus)
+#Replacing the values with NA 
+sigtab05$Genus <- replace(sigtab05$Genus, sigtab05$Genus=="g__", NA)
+sigtab05$Genus <- gsub("g__*", "", sigtab05$Genus)
+sigtab05$Phylum <- gsub("p__*", "", sigtab05$Phylum)
+sigtab05$Family <- gsub("f__*", "", sigtab05$Family)
+sigtabna05 = subset(sigtab05, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab05 = sigtabna05[(sigtabna05$log2FoldChange >=0) & (sigtabna05$padj <= 0.05),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab05 = sigtabna05[(sigtabna05$log2FoldChange <=0) & (sigtabna05$padj <= 0.05),] 
+#Make tables 
+posc05 <- as.data.frame(table(possigtab05$Genus)) 
+negc05 <- as.data.frame(table(negsigtab05$Genus))
+
+#Add increase and decrease labels 
+posc05[["change"]] <- (rep(c("Increase"),dim(posc05)[1])) 
+negc05[["change"]] <- (rep(c("Decrease"),dim(negc05)[1]))
+
+posnegc05 = rbind(posc05,negc05) 
+write.table(posnegc05, here("data/process", "posnegc05hfd_xn.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: HFD vs. XN}
+x = tapply(sigtab05$log2FoldChange, sigtab05$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05$Phylum = factor(as.character(sigtab05$Phylum), levels=names(x)) 
+x = tapply(sigtab05$log2FoldChange, sigtab05$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05$Genus = factor(as.character(sigtab05$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab05pos = sigtab05[(sigtab05$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab05pos, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 13 NAs that increased in abundance
+sigtab05neg = sigtab05[(sigtab05$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab05neg, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 31 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab05, 1, function(x){any(is.na(x))}) 
+sigtab05.filtered <- sigtab05[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de2.1 <-  ggplot(sigtab05.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  #guides(fill=guide_legend(ncol=3)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_text(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "none",
+        #legend.key=element_blank(),
+        #legend.text = element_text(size = 12),
+        #legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank()) + 
+  ylab("log2FoldChange")
+
+#fc6cf2 pink
+#f91904 red
+
+
+hfd_xn <- de2.1 + scale_fill_manual(values=c("#0be0e8", "#f7f76f")) + ylim(-7,4) + coord_flip()
+
+hfd_xn <- hfd_xn + annotate("text", x = 7, y = -6, label = "HFD vs. XN")
+
+ggsave(here("results/figures", "hfd-xn.png"), width = 10, height = 8)
+```
+
+
+```{r DESeq2 differential abundance: DXN vs. TXN}
+res <- results(dds, contrast = c("Diet", "4.TXN", "3.DXN")) 
+res = res[order(res$padj, na.last=NA), ] 
+sigtab05 = res[(res$padj < 0.05), ]
+
+dim(sigtab05) #Export this to use as a table (for supplementary)
+sigtab05 = cbind(as(sigtab05, "data.frame"), as(tax_table(physeq)[rownames(sigtab05), ], "matrix"))
+write.table(sigtab05, here("data/process", "dxn_txn.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab05$Genus <- as.character(sigtab05$Genus)
+#Replacing the values with NA 
+sigtab05$Genus <- replace(sigtab05$Genus, sigtab05$Genus=="g__", NA)
+sigtab05$Genus <- gsub("g__*", "", sigtab05$Genus)
+sigtab05$Phylum <- gsub("p__*", "", sigtab05$Phylum)
+sigtab05$Family <- gsub("f__*", "", sigtab05$Family)
+sigtabna05 = subset(sigtab05, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab05 = sigtabna05[(sigtabna05$log2FoldChange >=0) & (sigtabna05$padj <= 0.05),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab05 = sigtabna05[(sigtabna05$log2FoldChange <=0) & (sigtabna05$padj <= 0.05),] 
+#Make tables 
+posc05 <- as.data.frame(table(possigtab05$Genus)) 
+negc05 <- as.data.frame(table(negsigtab05$Genus))
+
+#Add increase and decrease labels 
+posc05[["change"]] <- (rep(c("Increase"),dim(posc05)[1])) 
+negc05[["change"]] <- (rep(c("Decrease"),dim(negc05)[1]))
+
+posnegc05 = rbind(posc05,negc05) 
+write.table(posnegc05, here("data/process", "posnegc05dxn_txn.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: DXN vs. TXN}
+x = tapply(sigtab05$log2FoldChange, sigtab05$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05$Phylum = factor(as.character(sigtab05$Phylum), levels=names(x)) 
+x = tapply(sigtab05$log2FoldChange, sigtab05$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab05$Genus = factor(as.character(sigtab05$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab05pos = sigtab05[(sigtab05$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab05pos, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 20 NAs that increased in abundance
+sigtab05neg = sigtab05[(sigtab05$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab05neg, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 24 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab05, 1, function(x){any(is.na(x))}) 
+sigtab05.filtered <- sigtab05[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de4.3 <-  ggplot(sigtab05.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  #guides(fill=guide_legend(ncol=3)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_text(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "none",
+        #legend.key=element_blank(),
+        #legend.text = element_text(size = 12),
+        #legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank()) + 
+  ylab("log2FoldChange")
+
+#fc6cf2 pink
+#f91904 red
+
+
+dxn_txn <- de4.3 + scale_fill_manual(values=c("#0be0e8", "#a9f293", "#f91904")) + ylim(-6,9) + coord_flip()
+
+dxn_txn <- dxn_txn + annotate("text", x = 14, y = -5, label = "DXN vs. TXN")
+
+ggsave(here("results/figures", "hfd-xn.png"), width = 10, height = 8)
+```
+
+
+```{r}
+plot <- ggarrange(hfd_txn, hfd_dxn, hfd_xn, dxn_txn, align = "hv",
+          labels = c("A", "B", "C", "D"), 
+          heights=c(5,5), widths = c(4,4),
+          font.label = list(size = 17, color = "black"),
+          common.legend = TRUE, 
+          legend = "bottom",
+          ncol = 2, nrow = 2)
+
+annotate_figure(plot,
+                left = text_grob("Genus", rot = 90, color = "black", size = 18))
+
+ggsave(here("results/figures", "scratch3.png"), width = 14, height = 15)
+```
+
+
+## 0.01
+### hfd: txn
+
+```{r DESeq2 differential abundance: HFD vs. TXN}
+#Make table a data frame 
+psdt<-as.data.frame(otu_table(physeq)) 
+colnames <- sample_data(physeq) 
+#Make a matrix
+psdtt = as(psdt,"matrix") 
+#Add 1 to all values 
+psdtt = psdtt + 1 
+#Make a DESeq dataset from our matrix 
+dds<- DESeqDataSetFromMatrix(psdtt, colnames, design = as.formula(paste("~","Diet"))) ## ignore the warning
+
+#Run the DESeq2's main function - a differential expression analysis based on the Negative binomial distribution
+dds<- DESeq(dds, fitType = "local", test = "Wald", quiet = TRUE) 
+plotDispEsts(dds) ## what does the plot say...
+
+## extract differential abundance results
+
+res <- results(dds, contrast = c("Diet", "4.TXN", "1.HFD")) 
+res = res[order(res$padj, na.last=NA), ] 
+sigtab01 = res[(res$padj < 0.01), ]
+
+dim(sigtab01) #Export this to use as a table (for supplementary)
+sigtab01 = cbind(as(sigtab01, "data.frame"), as(tax_table(physeq)[rownames(sigtab01), ], "matrix"))
+write.table(sigtab01, here("data/process", "hfd_txn_0.01.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab01$Genus <- as.character(sigtab01$Genus)
+#Replacing the values with NA 
+sigtab01$Genus <- replace(sigtab01$Genus, sigtab01$Genus=="g__", NA)
+sigtab01$Genus <- gsub("g__*", "", sigtab01$Genus)
+sigtab01$Phylum <- gsub("p__*", "", sigtab01$Phylum)
+sigtab01$Family <- gsub("f__*", "", sigtab01$Family)
+sigtabna01 = subset(sigtab01, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab01 = sigtabna01[(sigtabna01$log2FoldChange >=0) & (sigtabna01$padj <= 0.01),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab01 = sigtabna01[(sigtabna01$log2FoldChange <=0) & (sigtabna01$padj <= 0.01),] 
+#Make tables 
+posc01 <- as.data.frame(table(possigtab01$Genus)) 
+negc01 <- as.data.frame(table(negsigtab01$Genus))
+
+#Add increase and decrease labels 
+posc01[["change"]] <- (rep(c("Increase"),dim(posc01)[1])) 
+negc01[["change"]] <- (rep(c("Decrease"),dim(negc01)[1]))
+
+posnegc01 = rbind(posc01,negc01) 
+write.table(posnegc01, here("data/process", "posnegc01_hfd_txn.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: HFD vs. TXN}
+x = tapply(sigtab01$log2FoldChange, sigtab01$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01$Phylum = factor(as.character(sigtab01$Phylum), levels=names(x)) 
+x = tapply(sigtab01$log2FoldChange, sigtab01$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01$Genus = factor(as.character(sigtab01$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab01pos = sigtab01[(sigtab01$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab01pos, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 42 NAs that increased in abundance
+sigtab01neg = sigtab01[(sigtab01$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab01neg, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 131 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab01, 1, function(x){any(is.na(x))}) 
+sigtab01.filtered <- sigtab01[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de001 <-  ggplot(sigtab01.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  guides(fill=guide_legend(nrow = 2)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "bottom",
+        legend.key=element_blank(),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank())
+
+hfd_txn_001 <- de001 + scale_fill_manual(values=c("#0be0e8", "#fc6cf2", "#f91904", "#f7f76f")) + ylim(-10,6) + coord_flip()
+
+#fc6cf2 pink
+#f91904 red
+
+ggsave(here("results/figures", "hfd_txn_001.png"), width = 10, height = 8)
+```
+
+### hfd: dxn
+
+```{r DESeq2 differential abundance: HFD vs. DXN}
+res1 <- results(dds, contrast = c("Diet", "3.DXN", "1.HFD")) 
+res1 = res1[order(res1$padj, na.last=NA), ] 
+sigtab01.1 = res1[(res1$padj < 0.01), ]
+
+dim(sigtab01.1) #Export this to use as a table (for supplementary)
+sigtab01.1 = cbind(as(sigtab01.1, "data.frame"), as(tax_table(physeq)[rownames(sigtab01.1), ], "matrix"))
+write.table(sigtab01.1, here("data/process", "hfd_dxn_001.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab01.1$Genus <- as.character(sigtab01.1$Genus)
+#Replacing the values with NA 
+sigtab01.1$Genus <- replace(sigtab01.1$Genus, sigtab01.1$Genus=="g__", NA)
+sigtab01.1$Genus <- gsub("g__*", "", sigtab01.1$Genus)
+sigtab01.1$Phylum <- gsub("p__*", "", sigtab01.1$Phylum)
+sigtab01.1$Family <- gsub("f__*", "", sigtab01.1$Family)
+sigtab01.1 = subset(sigtab01.1, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab05.31 = sigtabna05.31[(sigtabna05.31$log2FoldChange >=0) & (sigtabna05.31$padj <= 0.05),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab05.31 = sigtabna05.31[(sigtabna05.31$log2FoldChange <=0) & (sigtabna05.31$padj <= 0.05),] 
+#Make tables 
+posc05.31 <- as.data.frame(table(possigtab05.31$Genus)) 
+negc05.31 <- as.data.frame(table(negsigtab05.31$Genus))
+
+#Add increase and decrease labels 
+posc05.31[["change"]] <- (rep(c("Increase"),dim(posc05.31)[1])) 
+negc05.31[["change"]] <- (rep(c("Decrease"),dim(negc05.31)[1]))
+
+posnegc05.31 = rbind(posc05.31,negc05.31) 
+write.table(posnegc05.31, here("data/process", "posnegc05-31.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: HFD vs. DXN}
+x = tapply(sigtab01.1$log2FoldChange, sigtab01.1$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01.1$Phylum = factor(as.character(sigtab01.1$Phylum), levels=names(x)) 
+x = tapply(sigtab01.1$log2FoldChange, sigtab01.1$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01.1$Genus = factor(as.character(sigtab01.1$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab01pos1 = sigtab01.1[(sigtab01.1$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab01pos1, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 2 NAs that increased in abundance
+sigtab01neg1 = sigtab01.1[(sigtab01.1$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab01neg1, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 1 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab01.1, 1, function(x){any(is.na(x))}) 
+sigtab01.1.filtered <- sigtab01.1[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de1 <-  ggplot(sigtab01.1.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  guides(fill=guide_legend(ncol=3)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "bottom",
+        legend.key=element_blank(),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank())
+
+hfd_dxn_001 <- de1 + scale_fill_manual(values=c("#0be0e8", "#ed7942", "#f7f76f")) + ylim(-9,8) + coord_flip()
+
+ggsave(here("results/figures", "hfd_dxn_001.png"), width = 10, height = 7)
+```
+
+### hfd: xn
+```{r DESeq2 differential abundance: HFD vs. XN}
+res2 <- results(dds, contrast = c("Diet", "2.XN", "1.HFD")) 
+res2 = res2[order(res2$padj, na.last=NA), ] 
+sigtab01.2 = res2[(res2$padj < 0.01), ]
+
+dim(sigtab01.2) #Export this to use as a table (for supplementary)
+sigtab01.2 = cbind(as(sigtab01.2, "data.frame"), as(tax_table(physeq)[rownames(sigtab01.2), ], "matrix"))
+write.table(sigtab01.2, here("data/process", "hfd_xn_001.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab01.2$Genus <- as.character(sigtab01.2$Genus)
+#Replacing the values with NA 
+sigtab01.2$Genus <- replace(sigtab01.2$Genus, sigtab01.2$Genus=="g__", NA)
+sigtab01.2$Genus <- gsub("g__*", "", sigtab01.2$Genus)
+sigtab01.2$Phylum <- gsub("p__*", "", sigtab01.2$Phylum)
+sigtab01.2$Family <- gsub("f__*", "", sigtab01.2$Family)
+sigtab01.2 = subset(sigtab01.2, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab05 = sigtabna05[(sigtabna05$log2FoldChange >=0) & (sigtabna05$padj <= 0.05),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab05 = sigtabna05[(sigtabna05$log2FoldChange <=0) & (sigtabna05$padj <= 0.05),] 
+#Make tables 
+posc05 <- as.data.frame(table(possigtab05$Genus)) 
+negc05 <- as.data.frame(table(negsigtab05$Genus))
+
+#Add increase and decrease labels 
+posc05[["change"]] <- (rep(c("Increase"),dim(posc05)[1])) 
+negc05[["change"]] <- (rep(c("Decrease"),dim(negc05)[1]))
+
+posnegc05 = rbind(posc05,negc05) 
+write.table(posnegc05, here("data/process", "posnegc05hfd_xn.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: HFD vs. XN}
+x = tapply(sigtab01.2$log2FoldChange, sigtab01.2$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01.2$Phylum = factor(as.character(sigtab01.2$Phylum), levels=names(x)) 
+x = tapply(sigtab01.2$log2FoldChange, sigtab01.2$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01.2$Genus = factor(as.character(sigtab01.2$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab01.2pos = sigtab01.2[(sigtab01.2$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab01.2pos, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 0 NAs that increased in abundance
+sigtab01.2neg = sigtab01.2[(sigtab01.2$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab01.2neg, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 1 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab01.2, 1, function(x){any(is.na(x))}) 
+sigtab01.2.filtered <- sigtab01.2[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de2 <-  ggplot(sigtab01.2.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  guides(fill=guide_legend(ncol=3)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_text(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "bottom",
+        legend.key=element_blank(),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank()) + 
+  ylab("log 2 Fold Change")
+
+#fc6cf2 pink
+#f91904 red
+
+
+hfd_xn_001 <- de2 + scale_fill_manual(values=c("#0be0e8", "#f7f76f")) + ylim(-7,4) + coord_flip()
+ggsave(here("results/figures", "hfd_xn_001.png"), width = 10, height = 8)
+```
+
+### dxn: txn
+```{r DESeq2 differential abundance: DXN vs. TXN}
+res3 <- results(dds, contrast = c("Diet", "4.TXN", "3.DXN")) 
+res3 = res3[order(res3$padj, na.last=NA), ] 
+sigtab01.3 = res3[(res3$padj < 0.01), ]
+
+dim(sigtab01.3) #Export this to use as a table (for supplementary)
+sigtab01.3 = cbind(as(sigtab01.3, "data.frame"), as(tax_table(physeq)[rownames(sigtab01.3), ], "matrix"))
+write.table(sigtab01.3, here("data/process", "dxn_txn_001.txt"), sep = '\t', quote = F, col.names = NA)
+
+# For some reason there are no genus classification in some spots and they just read g__
+#First, asting the factors to characters so they can be replaced..
+sigtab01.3$Genus <- as.character(sigtab01.3$Genus)
+#Replacing the values with NA 
+sigtab01.3$Genus <- replace(sigtab01.3$Genus, sigtab01.3$Genus=="g__", NA)
+sigtab01.3$Genus <- gsub("g__*", "", sigtab01.3$Genus)
+sigtab01.3$Phylum <- gsub("p__*", "", sigtab01.3$Phylum)
+sigtab01.3$Family <- gsub("f__*", "", sigtab01.3$Family)
+sigtabna01.3 = subset(sigtab01.3, !is.na(Genus))
+
+## We can also make tables to show us how many of each genera increase and decrease in abundance at the 0.01 signiﬁcant levels. This is easily switched to 0.05 by changing threshold below. We can use this to compare to those genera that change in abundance using an OTU table generated via the QIIME pipeline.
+
+#Subset those that increased in abundance and where p<=0 
+possigtab05 = sigtabna05[(sigtabna05$log2FoldChange >=0) & (sigtabna05$padj <= 0.05),] 
+#Subset those that decreased in abundance and where p<=0 
+negsigtab05 = sigtabna05[(sigtabna05$log2FoldChange <=0) & (sigtabna05$padj <= 0.05),] 
+#Make tables 
+posc05 <- as.data.frame(table(possigtab05$Genus)) 
+negc05 <- as.data.frame(table(negsigtab05$Genus))
+
+#Add increase and decrease labels 
+posc05[["change"]] <- (rep(c("Increase"),dim(posc05)[1])) 
+negc05[["change"]] <- (rep(c("Decrease"),dim(negc05)[1]))
+
+posnegc05 = rbind(posc05,negc05) 
+write.table(posnegc05, here("data/process", "posnegc05dxn_txn.txt"), sep = '\t', quote = F, col.names = NA)
+```
+
+```{r DESeq2 plot: DXN vs. TXN}
+x = tapply(sigtab01.3$log2FoldChange, sigtab01.3$Phylum, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01.3$Phylum = factor(as.character(sigtab01.3$Phylum), levels=names(x)) 
+x = tapply(sigtab01.3$log2FoldChange, sigtab01.3$Genus, function(x) max(x)) 
+x = sort(x, TRUE) 
+sigtab01.3$Genus = factor(as.character(sigtab01.3$Genus), levels=names(x))
+
+#Count how many NAs increase and decrease in abundance, make a note of it and them omit them for plotting
+sigtab01.3pos = sigtab01.3[(sigtab01.3$log2FoldChange >=0),] 
+pos.row.has.na <- apply(sigtab01.3pos, 1, function(x){any(is.na(x))}) 
+sum(pos.row.has.na)
+#We see there were 16 NAs that increased in abundance
+sigtab01.3neg = sigtab01.3[(sigtab01.3$log2FoldChange <=0),] 
+neg.row.has.na <- apply(sigtab01.3neg, 1, function(x){any(is.na(x))}) 
+sum(neg.row.has.na)
+#We see there were 18 NAs that decreased in abundance
+
+#Filter these NAs from the table we will use for plotting.. 
+row.has.na <- apply(sigtab01.3, 1, function(x){any(is.na(x))}) 
+sigtab01.3.filtered <- sigtab01.3[!row.has.na,]
+
+#Plot 
+theme_set(theme_bw())
+de3 <-  ggplot(sigtab01.3.filtered, 
+            aes(x=Genus, y =log2FoldChange, 
+                color=Phylum, fill=Phylum)) + 
+  geom_point(size = 4, pch=21, colour = "black") +
+  guides(fill=guide_legend(ncol=3)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0, size = 13), 
+        axis.title.x = element_text(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.position = "bottom",
+        legend.key=element_blank(),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size =15, face = "bold"),
+        panel.grid.minor = element_blank(),
+        plot.margin=unit(c(1.5,0,0,0),"cm")) + 
+  ylab("log2 Fold Change")
+
+#fc6cf2 pink
+#f91904 red
+
+
+dxn_txn_001 <- de3 + scale_fill_manual(values=c("#0be0e8", "#f91904")) + ylim(-6,9) + coord_flip()
+ggsave(here("results/figures", "hfd_xn_001.png"), width = 10, height = 8)
+```
+
+
+```{r}
+plot2 <- ggarrange(hfd_txn_001, hfd_dxn_001, hfd_xn_001, dxn_txn_001, align = "hv",
+          labels = c("A", "B", "C", "D"), 
+          heights=c(5,5), widths = c(5,5),
+          font.label = list(size = 16, color = "black"),
+          common.legend = F, 
+          legend = "bottom",
+          ncol = 2, nrow = 2)
+
+annotate_figure(plot2,
+                left = text_grob("Genus", rot = 90, color = "black", size = 18))
+
+ggsave(here("results/figures", "Figure4.png"), width = 14, height = 15)
+```
