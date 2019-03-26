@@ -80,7 +80,7 @@ write.table(alpha, here("alpha2.txt"), sep = '\t', quote = F, col.names = NA)
 
 obs <- ggplot(alpha, aes(Diet, Observed)) + 
   geom_boxplot(aes(fill = Diet)) + 
-  scale_x_discrete(limits =c("1.HFD", "2.XN", "3.DXN", "4.TXN")) + 
+  scale_x_discrete(limits =c("1.HFD-ctrl", "2.HFD-XN", "3.HFD-DXN", "4.HFD-TXN")) + 
   ylab("Observed Species") + xlab("") + 
   scale_fill_manual(values=c("#0074C2", "#D3AA3D", "#868686", "#C75952"))
 
@@ -106,7 +106,7 @@ write.table(alpha_unr, here("alpha_unrarefied.txt"), sep = '\t', quote = F, col.
 
 shan <- ggplot(alpha_unr, aes(Diet, Shannon)) +
   geom_boxplot(aes(fill = Diet)) + 
-  scale_x_discrete(limits =c("1.HFD", "2.XN", "3.DXN", "4.TXN")) + 
+  scale_x_discrete(limits =c("1.HFD-ctrl", "2.HFD-XN", "3.HFD-DXN", "4.HFD-TXN")) + 
   xlab("") + ylab("Shannon Index") +
   scale_fill_manual(values=c("#0074C2", "#D3AA3D", "#868686", "#C75952"))
 
@@ -121,7 +121,6 @@ shan <- shan + theme(legend.position="none",
   scale_y_continuous(position = "right")
 
 shan <- shan + annotate("label", x = 4, y = 3.8, label = "italic(p) == 0.14", 
-             #vjust = "outward", hjust = "outward", 
              parse = TRUE, fill = "#FBE0AA", size = 7)
 
 ##################################### combine plots #############################################
@@ -131,7 +130,7 @@ ggarrange(obs, shan, align = "h",
           font.label = list(size = 20, color = "black"),
           ncol = 2, nrow = 1)
 
-ggsave(here("Figure2.png"), width = 16, height = 8)
+ggsave(here("Figure2-1.png"), width = 16, height = 8)
 ```
 
 
