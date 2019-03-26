@@ -1,31 +1,11 @@
-# Treatment of Diet-Induced Obese Mice with Xanthohumol and its Non-Estrogenic Derivatives DXN and TXN Modulates Composition of the Fecal Microbiota, Bile Acids and is Associated with Improvement of Metabolic Syndrome Biomarkers
+# Improvements in Metabolic Syndrome Criteria by Xanthohumol Derivatives are Linked to Changes in Fecal Microbiota in a Murine Metabolic Syndrome Model 
 
-Xanthohumol (XN), a prenylated flavonoid found in hops, reduces weight gain and improves dysfunctional glucose 
-and lipid metabolism in preclinical animal models of diet-induced obesity (DIO) and metabolic syndrome (MetS). 
-Gut microbes can metabolize XN into a potent phytoestrogen, 8-prenylnaringenin (8-PN). To address concerns 
-with phytoestrogen exposure, in a previous study we tested two hydrogenated XN derivatives, α, β -dihydro-XN 
-(DXN) and tetrahydro-XN (TXN), that cannot be metabolically converted into 8-PN. We fed C57BL/6J mice a 
-high-fat diet (HFD) or HFD containing XN, DXN or TXN for 13 weeks with a submaximal dose (for XN) of 30 
-mg/kg/day to compare differences in pharmacological response among the three compounds. All three compounds 
-improved impaired glucose tolerance in mice compared to the HFD control; however, only the derivatives 
-significantly decreased HOMA-IR and leptin. Furthermore, only TXN reduced body mass gain and fasting plasma 
-glucose levels. Both DXN and TXN increased oxygen consumption via mild mitochondrial uncoupling, but they did 
-not activate liver AMPK and suppressed it in muscle; therefore, the mechanism(s) by which these derivatives 
-confer their benefits remains unclear. We hypothesized that XN and its hydrogenated derivatives mediate their 
-beneficial effects by improving barrier function of the gut, thus reducing inflammation, and modulating 
-composition of the gut microbiota. To test this hypothesis, we sequenced the 16S rRNA genes of fecal samples 
-from each animal, measured gene expression for genes that affect the epithelial barrier, inflammation and bile 
-acid metabolism, and determined bile acid composition of the feces. We observed a significant association in 
-the structure and membership of the microbiota with treatment. The compounds significantly decreased the 
-percentages of Bacteroidetes and Tenericutes. Specifically, TXN treatment significantly changed bile acid 
-composition and decreased inflammation induced by the HFD in white adipose tissue and the colon. Moreover, 
-transkingdom network analysis revealed potential bacteria modulators Marvinbryantia, Romboutsia and other 
-undefined genera from the Lachnospiraceae family in the interaction with host energy and bile acid metabolism. 
-We postulate that TXN treatment ameliorates DIO and the concomitant symptoms of MetS by changing the 
-composition of the gut microbiota, bile acid metabolism and host energy metabolism. Further study on the 
-mechanism of action of the TXN-selected microbiota on ameliorating symptoms of MetS in DIO using a germ-free 
-mouse model is needed.
-
+We previously showed that two hydrogenated xanthohumol (XN) derivatives, α, β -dihydro-XN (DXN) and tetrahydro-XN (TXN), improved several criteria of metabolic syndrome (MetS), a critical risk factor of cardiovascular disease 
+(CVD), in a murine model for diet-induced MetS. To evaluate whether MetS improvements are linked to changes in the microbiome, we fed C57BL/6J male mice a high-fat diet (HFD) or HFD containing XN, DXN or TXN for 13 weeks with a 
+submaximal dose (for XN) of 30 mg/kg diet/day. We sequenced 16S rRNA gene and measured bile acids (BAs) in fecal samples and genes associated with epithelial barrier, inflammation, as well as bile acid metabolism, in samples from 
+colon, white adipose tissue, and liver, respectively. Both XN-derivatives significantly decreased the percentages of Bacteroidetes and Tenericutes, and TXN altered BA composition and decreased gene expression associated with 
+chronic inflammation. Transkingdom network analysis allowed us to link changes in fecal Marvinbryantia, Romboutsia and other undefined genera from the Lachnospiraceae family with changes in BA composition and improvements in MetS 
+indicators, which will be the focus of our future studies. In conclusion, microbiota changes may in part explain diet (TXN)-induced improvements in MetS criteria and CVD risk.
 
 ## Overview
 
