@@ -204,15 +204,27 @@ pca.ord <- ordinate(ps.prop, method = "PCoA")
 
 
 
-allcolors <- c("#a2bba7", "#f8d1ac", "#eb9391", "#9572bf")
+#allcolors <- c("#a2bba7", "#f8d1ac", "#eb9391", "#9572bf")
+allcolors <- c("#0074C2", "#D3AA3D", "#868686", "#C75952")
 
 p <- plot_ordination(ps.prop, pca.ord, color = "Diet")
 
-pp <- p + geom_point(size = 4) +
+BC <- p + geom_point(size = 4) +
   scale_color_manual(values = allcolors) +
   stat_ellipse(type = "t", level = 0.95) +
   geom_vline(xintercept = 0, alpha = 0.15) +
   geom_hline(yintercept = 0, alpha = 0.15) +
+    labs(title = "Bray-Curtis") +
+    theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15, face = "bold"),
+        plot.title = element_text(size = 15),
+        legend.text = element_text(size = 15), 
+        plot.margin = margin(1, 1, 0, 0, "cm"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.title = element_text(size = 15, face = "bold"))
+
+
   theme(axis.text = element_text(size = 12),
         axis.title = element_text(size = 15, face = "bold"),
         plot.title = element_text(size = 18, face = "bold"),
@@ -393,9 +405,9 @@ ggsave(here("figures", "Figure3_beta_diversity_unifrac.png"), width = 12, height
 ```{r}
 ggarrange(an, 
           bn,
-          pp,
+          BC,
           align = "h",
-          labels = c("unifrac", "wunifrac", "bray", ""), 
+          labels = c("A", "B", "C"), 
           #font.label = list(size = 15, color = "black"),
           legend = c("bottom"),
           common.legend = TRUE)
@@ -404,20 +416,17 @@ ggsave(here("figures", "Figure3_unifrac.png"), width = 12, height = 12)
 
 
 
-ggarrange(an, 
+ggarrange(BC,
+          an, 
           bn,
-          pp,
-          #qq,
-          #ff,
+          
           ncol = 2, nrow = 2,
           align = "hv",
           labels = c("A", "B", "C"), 
           font.label = list(size = 15, color = "black"),
           legend = c("bottom"),
-          #label.x.npc = 0.4, 
-          #label.y.npc = 1, 
           hjust = -0.4, vjust = 2,
           common.legend = TRUE)
-ggsave(here("Figure3-new.png"), width = 16, height = 14)
+ggsave(here("Figure3.png"), width = 16, height = 14)
 ```
 
