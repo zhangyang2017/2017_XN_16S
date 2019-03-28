@@ -30,7 +30,7 @@ sapply(c(.cran_packages, .bioc_packages), require, character.only = TRUE)
 ```
 
 
-## Generat
+## Generate Phyloseq Object
 ```{r create phyloseq object}
 ## load ASV count table
 asv_counts <- read.table(here("results/analyses/Figure2", "ASVs_counts.txt"), header = T)  ## 1620*47
@@ -55,19 +55,13 @@ asv_counts_subset <- asv_counts_subset %>%
 rownames(asv_counts_subset) <- rownames(taxa)
 
 asv_c = otu_table(asv_counts_subset, taxa_are_rows = TRUE)
-
 sampledata = sample_data(meta_data)
-physeq <- merge_phyloseq(sampledata, asv_c, tax)
-physeq
+
+(physeq <- merge_phyloseq(sampledata, asv_c, tax))
 ```
 
-
-```{r}
-theme_set(theme_bw())
-```
-
-
-````{r}
+## Rarefy data and do statistics
+```{r Stat}
 # rarefy without replacement
 physeq.rarefied = rarefy_even_depth(physeq, rngseed=1, sample.size=0.9*min(sample_sums(physeq)), replace=F)
 
@@ -75,10 +69,23 @@ alpha <- estimate_richness(physeq.rarefied)
 metadt <- as.data.frame(sample_data(physeq.rarefied))
 alpha["Diet"] = metadt[,"Diet"] 
 alpha["sampleID"] = metadt[,"sampleID"]
-
 # write.table(alpha, here("alpha2.txt"), sep = '\t', quote = F, col.names = NA)
 
-#################################### observed species ##########################################
+sample_data(physeq.rarefied)$shannon.physeq <- estimate_richness(physeq.rarefied, 
+                                                                 measures= c("Observed", "Shannon"))
+meta_data$shannon.vegan <- diversity(t(asv_counts), index="shannon")
+
+
+(kw.shannon <- kruskal.test(shannon.vegan ~ Diet, data=meta_data))
+(kw.obs <- kruskal.test(
+    sample_data(physeq.rarefied)$shannon.physeq$Observed ~ sample_data(physeq.rarefied)$Diet))
+```
+
+
+## Plot!
+
+```{r}
+theme_set(theme_bw())
 
 obs <- ggplot(alpha, aes(Diet, Observed)) + 
   geom_boxplot(aes(fill = Diet)) + 
@@ -121,17 +128,6 @@ ggarrange(obs, shan, align = "h",
           ncol = 2, nrow = 1)
 
 ggsave(here("Figure2.png"), width = 16, height = 8)
-```
-
-
-
-```{r Stat}
-sample_data(physeq.rarefied)$shannon.physeq <- estimate_richness(physeq.rarefied, measures= c("Observed", "Shannon"))
-meta_data$shannon.vegan <- diversity(t(asv_counts), index="shannon")
-
-(kw.shannon <- kruskal.test(shannon.vegan ~ Diet, data=meta_data))
-
-(kw.obs <- kruskal.test(sample_data(physeq.rarefied)$shannon.physeq$Observed ~ sample_data(physeq.rarefied)$Diet))
 ```
 
 
