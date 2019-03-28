@@ -1,0 +1,133 @@
+---
+title: "Figure2: alpha diversities"
+author: "Yang Zhang"
+date: "3/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Getting R ready
+```{r}
+library(knitr)
+library(BiocStyle)
+
+.cran_packages <- c("ggplot2", "gridExtra", "here", "dplyr", "ggpubr", "vegan")
+.bioc_packages <- c("phyloseq")
+.inst <- .cran_packages %in% installed.packages()
+if(any(!.inst)) {
+   install.packages(.cran_packages[!.inst])
+}
+.inst <- .bioc_packages %in% installed.packages()
+if(any(!.inst)) {
+   source("http://bioconductor.org/biocLite.R")
+   biocLite(.bioc_packages[!.inst], ask = F)
+}
+# Load packages into session, and print package version
+sapply(c(.cran_packages, .bioc_packages), require, character.only = TRUE)
+```
+
+
+## Generate Phyloseq Object
+```{r create phyloseq object}
+## load ASV count table
+asv_counts <- read.table(here("results/analyses/Figure2", "ASVs_counts.txt"), header = T)  ## 1620*47
+## load sample data table
+meta_data <- read.table(here("results/analyses/Figure2", "sampledata.txt"), row.names = 1)
+## load taxonomy table (filtered out some unclassified ASVs)
+taxa <- read.table(here("results/analyses/Figure2", "ASV_taxonomy_subset.txt"), header = T, stringsAsFactors = FALSE, sep = "\t", fill = TRUE, quote = "")
+
+## get the subset of asv_counts in which only an intersection of ASVs with taxa are shown.
+asv_counts_subset <- subset(asv_counts, rownames(asv_counts) %in% taxa[,1])  ## 786*47
+## get ready with taxa
+rownames(taxa) <- rownames(asv_counts_subset)
+taxa <- as.matrix(taxa)
+taxa <- taxa[, -c(1)]
+tax = tax_table(taxa)
+
+## make adjustments according to phyloseq's liking
+asv_counts_subset <- asv_counts_subset %>% 
+  mutate_if(is.integer, as.numeric)
+asv_counts_subset <- asv_counts_subset %>% 
+  mutate_if(is.factor, as.character)
+rownames(asv_counts_subset) <- rownames(taxa)
+
+asv_c = otu_table(asv_counts_subset, taxa_are_rows = TRUE)
+sampledata = sample_data(meta_data)
+
+(physeq <- merge_phyloseq(sampledata, asv_c, tax))
+```
+
+## Rarefy data and do statistics
+```{r Stat}
+# rarefy without replacement
+physeq.rarefied = rarefy_even_depth(physeq, rngseed=1, sample.size=0.9*min(sample_sums(physeq)), replace=F)
+
+alpha <- estimate_richness(physeq.rarefied)
+metadt <- as.data.frame(sample_data(physeq.rarefied))
+alpha["Diet"] = metadt[,"Diet"] 
+alpha["sampleID"] = metadt[,"sampleID"]
+# write.table(alpha, here("alpha2.txt"), sep = '\t', quote = F, col.names = NA)
+
+sample_data(physeq.rarefied)$shannon.physeq <- estimate_richness(physeq.rarefied, 
+                                                                 measures= c("Observed", "Shannon"))
+meta_data$shannon.vegan <- diversity(t(asv_counts), index="shannon")
+
+
+(kw.shannon <- kruskal.test(shannon.vegan ~ Diet, data=meta_data))
+(kw.obs <- kruskal.test(
+    sample_data(physeq.rarefied)$shannon.physeq$Observed ~ sample_data(physeq.rarefied)$Diet))
+```
+
+
+## Plot!
+```{r}
+theme_set(theme_bw())
+
+obs <- ggplot(alpha, aes(Diet, Observed)) + 
+  geom_boxplot(aes(fill = Diet)) + 
+  scale_x_discrete(limits =c("1.HFD-CON", "2.HFD-XN", "3.HFD-DXN", "4.HFD-TXN")) + 
+  ylab("Observed Species") + xlab("") + 
+  scale_fill_manual(values=c("#0074C2", "#D3AA3D", "#868686", "#C75952"))
+
+obs <- obs + theme(legend.position="none",
+                   plot.margin = unit(c(1,0.3,0.3,0), "cm"),
+                   axis.title.x = element_text(size = 18),
+                   axis.title.y = element_text(size = 18, margin = margin(t=0, r=10, b=0, l=0)),
+                   axis.text.y = element_text(size = 16),
+                   axis.text.x = element_text(size = 15, face = "bold"))
+
+obs <- obs + annotate("label", x = 4, y = 350, label = "italic(p) < 0.001", 
+             parse = TRUE, fill = "#68CBF2", size = 7)
+
+shan <- ggplot(alpha, aes(Diet, Shannon)) +
+  geom_boxplot(aes(fill = Diet)) + 
+  scale_x_discrete(limits =c("1.HFD-CON", "2.HFD-XN", "3.HFD-DXN", "4.HFD-TXN")) + 
+  xlab("") + ylab("Shannon Index") +
+  scale_fill_manual(values=c("#0074C2", "#D3AA3D", "#868686", "#C75952"))
+
+shan <- shan + theme(legend.position="none",
+                     plot.margin = unit(c(1,0.3,0.3,0.3), "cm"),
+                      axis.title.x = element_text(size = 18),
+                     axis.title.y = element_text(size = 18, margin = margin(t=0, r=10, b=0, l=0)),
+                      axis.text.y = element_text(size = 16),
+                      axis.text.x = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(position = "right")
+
+shan <- shan + annotate("label", x = 4, y = 3.8, label = "italic(p) == 0.14", 
+             parse = TRUE, fill = "#FBE0AA", size = 7)
+
+##################################### combine plots #############################################
+
+ggarrange(obs, shan, align = "h",
+          labels = c("A", "B"), 
+          font.label = list(size = 20, color = "black"),
+          ncol = 2, nrow = 1)
+
+ggsave(here("Figure2.png"), width = 16, height = 8)
+```
+
+
+
