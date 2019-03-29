@@ -18,44 +18,44 @@ indicators, which will be the focus of our future studies. In conclusion, microb
 ├── results/
 │   ├── analyses/
 │   │   ├── Figure1/
-│	│	│	├── ASV_taxonomy_subset.txt
-│	│	│	├── ASVs_counts.txt
-│	│	│	├── Figure1_final.Rmd
-│	│	│	└── sampledata.txt
+│   │   │	├── ASV_taxonomy_subset.txt
+│   │	│	├── ASVs_counts.txt
+│   │	│	├── Figure1_final.Rmd
+│   │	│	└── sampledata.txt
 │   │   ├── Figure2/
-│	│	│	├── ASV_taxonomy_subset.txt
-│	│	│	├── ASVs_counts.txt
-│	│	│	├── Figure2.Rmd
-│	│	│	├── TableSS2.txt
-│	│	│	└── sampledata.txt			
+│   │	│	├── ASV_taxonomy_subset.txt
+│   │	│	├── ASVs_counts.txt
+│   │	│	├── Figure2.Rmd
+│   │	│	├── TableSS2.txt
+│   │	│	└── sampledata.txt			
 │   │   ├── Figure3/
-│	│	│	├── ASVs_counts_gg.txt
-│	│	│	├── ASVs_taxonomy_gg.txt
-│	│	│	├── Figure3.Rmd
-│	│	│	├── phyloseq_wtree.rds
-│	│	│	├── sampledata.txt
-│	│	│	└── seqtabNoC.rds
+│   │	│	├── ASVs_counts_gg.txt
+│   │	│	├── ASVs_taxonomy_gg.txt
+│   │	│	├── Figure3.Rmd
+│   │	│	├── phyloseq_wtree.rds
+│   │	│	├── sampledata.txt
+│   │	│	└── seqtabNoC.rds
 │   │   ├── Figure4/
-│	│	│	├── ASVs_counts_gg.txt
-│	│	│	├── ASVs_taxonomy_gg.txt
-│	│	│	├── Figure4.Rmd
-│	│	│	├── phyloseq.rds
-│	│	│	├── posnegc05.txt
-│	│	│	├── sampledata.txt
-│	│	│	└── sigtab05.txt
+│   │	│	├── ASVs_counts_gg.txt
+│   │	│	├── ASVs_taxonomy_gg.txt
+│   │	│	├── Figure4.Rmd
+│   │	│	├── phyloseq.rds
+│   │	│	├── posnegc05.txt
+│   │	│	├── sampledata.txt
+│   │	│	└── sigtab05.txt
 │   │   ├── Figure5/
-│	│	│	├── Figure5.svg
-│	│	│	├── fecal_BA3.txt
-│	│	│	└── figure5.Rmd
+│   │	│	├── Figure5.svg
+│   │	│	├── fecal_BA3.txt
+│   │	│	└── figure5.Rmd
 │   │   ├── Figure6/
-│	│	│	├── Figure6.png
-│	│	│	├── figure6.Rmd
-│	│	│	└── genes.txt
+│   │	│	├── Figure6.png
+│   │	│	├── figure6.Rmd
+│   │	│	└── genes.txt
 │   │   └── Figure7/
-│	│		├── Results.xlsx
-│	│		├── net.cys
-│	│		├── net.png
-│	│		└── network.cys
+│   │		├── Results.xlsx
+│   │		├── net.cys
+│   │		├── net.png
+│   │		└── network.cys
 │   └── Figures/
 │       ├── Figure1.png
 │       ├── Figure2.png
