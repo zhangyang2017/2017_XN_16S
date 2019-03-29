@@ -1,5 +1,5 @@
 # Improvements in Metabolic Syndrome Criteria by Xanthohumol Derivatives are Linked to Changes in Fecal Microbiota in a Murine Metabolic Syndrome Model 
-===
+
 ![](https://img.shields.io/badge/PhD-project-hotpink.svg?style=flat)
 
 We previously showed that two hydrogenated xanthohumol (XN) derivatives, α, β-dihydro-XN (DXN) and tetrahydro-XN (TXN), improved several criteria of metabolic syndrome (MetS), a critical risk factor of cardiovascular disease 
