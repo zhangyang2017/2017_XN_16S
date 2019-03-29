@@ -6,7 +6,8 @@ We previously showed that two hydrogenated xanthohumol (XN) derivatives, α, β-
 (CVD), in a murine model for diet-induced MetS. To evaluate whether MetS improvements are linked to changes in the microbiome, we fed C57BL/6J male mice a high-fat diet (HFD) or HFD containing XN, DXN or TXN for 13 weeks with a 
 submaximal dose (for XN) of 30 mg/kg diet/day. We sequenced 16S rRNA gene and measured bile acids (BAs) in fecal samples and genes associated with epithelial barrier, inflammation, as well as bile acid metabolism, in samples from 
 colon, white adipose tissue, and liver, respectively. Both XN-derivatives significantly decreased the percentages of Bacteroidetes and Tenericutes, and TXN altered BA composition and decreased gene expression associated with 
-chronic inflammation. Transkingdom network analysis allowed us to link changes in fecal Marvinbryantia, Romboutsia and other undefined genera from the Lachnospiraceae family with changes in BA composition and improvements in MetS 
+chronic inflammation. Transkingdom network analysis allowed us to link changes in fecal **Marvinbryantia**, 
+Romboutsia and other undefined genera from the Lachnospiraceae family with changes in BA composition and improvements in MetS 
 indicators, which will be the focus of our future studies. In conclusion, microbiota changes may in part explain diet (TXN)-induced improvements in MetS criteria and CVD risk.
 
 ## Overview
