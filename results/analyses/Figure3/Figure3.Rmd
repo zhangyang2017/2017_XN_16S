@@ -146,6 +146,6 @@ ggarrange(BC,
           legend = c("bottom"),
           hjust = -0.4, vjust = 2,
           common.legend = TRUE)
-ggsave(here("Figure3.png"), width = 16, height = 14)
+ggsave(here("results/analyses/Figure3", "Figure3.png"), width = 16, height = 14)
 ```
 
